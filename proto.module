@@ -1,0 +1,77 @@
+<?php
+
+function proto_theme($existing, $type, $theme, $path) {
+  $pages = _get_theme_key('pages');
+  $partials = _get_theme_key('partials');
+  return array_merge(_get_hook_theme($pages,'pages'),_get_hook_theme($partials,'partials'));
+}
+
+function _get_theme_key($folderName) {
+  $currentDir = dirname(__FILE__);
+  $fileName = scandir($currentDir.'/'.$folderName);
+  $explodedFileName = array_map(function($item){return explode('.',$item);},$fileName);
+  $fileKeyWithBlank = array_map('array_shift',$explodedFileName);
+  $fileKey = array_filter($fileKeyWithBlank);
+  return $fileKey;
+}
+
+function _get_hook_theme($key,$folder) {
+  return array_reduce(
+    $key,
+    function($carry,$item) use($folder){
+      $carry[$item] = [
+        'template'=>$folder.'/'.$item
+        ];
+      return $carry;
+    },
+    []
+  );
+}
+
+function proto_menu() {
+  $pages = _get_theme_key('pages');
+  $temp =array_reduce(
+    $pages,
+    function($carry,$item){
+      $path = 'prototype/'.$item;
+      $carry[$path] = [
+        'page callback'=>'_proto_callback',
+        'access arguments' => array('access_prototype'), 
+        'page arguments'=>[$item]
+        ];
+      return $carry;
+    },
+    []
+  );
+  return $temp;
+}
+
+function _proto_callback($template){
+  $partialKey = _get_theme_key('partials');
+  $partial = array_reduce(
+    $partialKey,
+    function($carry,$key){ $carry[$key] = theme($key);return $carry;},
+    []
+  );
+  return theme($template,$partial);
+}
+
+function proto_permission() {
+  return [
+      'access_prototype' => [
+        'title' => t('access prototype'),
+        'description'=>t('access the prototype pages'),
+      ]
+    ];
+}
+
+function _tooglePrototype($key){
+  $partials = _get_theme_key('partials');
+  $themeKey =(isset($_GET[$key])) ? $_GET[$key] : "";
+  if(in_array($themeKey,$partials) && user_access("access_prototype")){
+    print theme($themeKey); 
+    return false;
+  } else {
+    return true;
+  }
+}
